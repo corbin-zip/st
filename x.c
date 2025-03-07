@@ -1624,10 +1624,10 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 	}
 
 	if (base.mode & ATTR_BLINK && win.mode & MODE_BLINK)
-	fg = bg;
+        fg = bg;
 
 	if (base.mode & ATTR_INVISIBLE)
-	fg = bg;
+        fg = bg;
 
 	if (dmode & DRAW_BG) {
 		/* Intelligent cleaning up of the borders. */
