@@ -2032,11 +2032,11 @@ void
 kpress(XEvent *ev)
 {
 	XKeyEvent *e = &ev->xkey;
-	KeySym ksym;
-	char *buf = NULL, *customkey;
+	KeySym ksym = NoSymbol;
+	static char *buf;
+	static int buf_size = 64;
+	char *customkey;
 	int len = 0;
-	int buf_size = 64;
-	int critical = - 1;
 	Rune c;
 	Status status;
 	Shortcut *bp;
@@ -2044,44 +2044,37 @@ kpress(XEvent *ev)
 	if (IS_SET(MODE_KBDLOCK))
 		return;
 
-reallocbuf:
-	if (critical > 0)
-		goto cleanup;
-	if (buf)
-		free(buf);
-
-	buf = xmalloc((buf_size) * sizeof(char));
-	critical += 1;
+	if (buf == NULL)
+		buf = xmalloc(buf_size);
 
 	if (xw.ime.xic) {
 		len = XmbLookupString(xw.ime.xic, e, buf, buf_size, &ksym, &status);
 		if (status == XBufferOverflow) {
 			buf_size = len;
-			goto reallocbuf;
+			buf = xrealloc(buf, buf_size);
+			len = XmbLookupString(xw.ime.xic, e, buf, buf_size,
+			                      &ksym, &status);
 		}
 	} else {
-		// Not sure how to fix this and if it is fixable
-		// but at least it does write something into the buffer
-		// so it is not as critical
 		len = XLookupString(e, buf, buf_size, &ksym, NULL);
 	}
 	/* 1. shortcuts */
 	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {
 		if (ksym == bp->keysym && match(bp->mod, e->state)) {
 			bp->func(&(bp->arg));
-			goto cleanup;
+			return;
 		}
 	}
 
 	/* 2. custom keys from config.h */
 	if ((customkey = kmap(ksym, e->state))) {
 		ttywrite(customkey, strlen(customkey), 1);
-		goto cleanup;
+		return;
 	}
 
 	/* 3. composed string from input method */
 	if (len == 0)
-		goto cleanup;
+		return;
 	if (len == 1 && e->state & Mod1Mask) {
 		if (IS_SET(MODE_8BIT)) {
 			if (*buf < 0177) {
@@ -2094,11 +2087,7 @@ reallocbuf:
 			len = 2;
 		}
 	}
-	if (len <= buf_size)
-		ttywrite(buf, len, 1);
-cleanup:
-	if (buf)
-		free(buf);
+	ttywrite(buf, len, 1);
 }
 
 void
