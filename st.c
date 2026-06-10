@@ -123,6 +123,7 @@ typedef struct {
 	Line *alt;    /* alternate screen */
 	Line hist[HISTSIZE]; /* history buffer */
 	int histi;    /* history index */
+	int histn;    /* number of valid history lines */
 	int scr;      /* scroll back */
 	int *dirty;   /* dirtyness of lines */
 	TCursor c;    /* cursor */
@@ -1118,7 +1119,10 @@ kscrollup(const Arg* a)
 	if (n < 0)
 		n = term.row + n;
 
-	if (term.scr <= HISTSIZE-n) {
+	if (n > term.histn - term.scr)
+		n = term.histn - term.scr;
+
+	if (n > 0) {
 		term.scr += n;
 		selscroll(0, n);
 		tfulldirt();
@@ -1159,6 +1163,8 @@ tscrollup(int orig, int n, int copyhist)
 
 	if (copyhist) {
 		term.histi = (term.histi + 1) % HISTSIZE;
+		if (term.histn < HISTSIZE)
+			term.histn++;
 		temp = term.hist[term.histi];
 		term.hist[term.histi] = term.line[orig];
 		term.line[orig] = temp;
@@ -1324,6 +1330,14 @@ tclearregion(int x1, int y1, int x2, int y2)
 	LIMIT(x2, 0, term.maxcol-1);
 	LIMIT(y1, 0, term.row-1);
 	LIMIT(y2, 0, term.row-1);
+
+	/*
+	 * clears reaching the visible right edge must also wipe the
+	 * off-screen columns kept around for shrink/grow cycles, or
+	 * stale text reappears when the window grows back
+	 */
+	if (x2 >= term.col-1)
+		x2 = term.maxcol-1;
 
 	for (y = y1; y <= y2; y++) {
 		term.dirty[y] = 1;
@@ -2714,10 +2728,13 @@ void
 tresize(int col, int row)
 {
 	int i, j;
-	int tmp;
+	int tmp, grown;
 	int minrow, mincol;
 	int *bp;
 	TCursor c;
+	Line tline;
+	Line *mainscr = IS_SET(MODE_ALTSCREEN) ? term.alt : term.line;
+	Line *altscr = IS_SET(MODE_ALTSCREEN) ? term.line : term.alt;
 
 	tmp = col;
 	if (!term.maxcol)
@@ -2734,12 +2751,16 @@ tresize(int col, int row)
 
 	/*
 	 * slide screen to keep cursor where we expect it -
-	 * tscrollup would work here, but we can optimize to
-	 * memmove because we're freeing the earlier lines
+	 * the main screen's lines go into the scrollback ring
+	 * so they survive a shrink/grow cycle
 	 */
 	for (i = 0; i <= term.c.y - row; i++) {
-		free(term.line[i]);
-		free(term.alt[i]);
+		term.histi = (term.histi + 1) % HISTSIZE;
+		if (term.histn < HISTSIZE)
+			term.histn++;
+		free(term.hist[term.histi]);
+		term.hist[term.histi] = mainscr[i];
+		free(altscr[i]);
 	}
 	/* ensure that both src and dst are not NULL */
 	if (i > 0) {
@@ -2786,6 +2807,7 @@ tresize(int col, int row)
 			*bp = 1;
 	}
 	/* update terminal size */
+	grown = row - term.row;
 	term.col = tmp;
 	term.maxcol = col;
 	term.row = row;
@@ -2806,6 +2828,28 @@ tresize(int col, int row)
 		tcursor(CURSOR_LOAD);
 	}
 	term.c = c;
+
+	/*
+	 * grow back into the scrollback: rotate the screen down and
+	 * pop history lines onto the top, reversing the shrink above
+	 */
+	if (!IS_SET(MODE_ALTSCREEN)) {
+		grown = MIN(grown, term.histn);
+		for (i = 0; i < grown; i++) {
+			tline = term.line[row-1];
+			memmove(term.line + 1, term.line,
+					(row - 1) * sizeof(Line));
+			term.line[0] = term.hist[term.histi];
+			term.hist[term.histi] = tline;
+			term.histi = (term.histi - 1 + HISTSIZE) % HISTSIZE;
+			term.histn--;
+		}
+		if (grown > 0) {
+			term.c.y += grown;
+			LIMIT(term.scr, 0, term.histn);
+			tfulldirt();
+		}
+	}
 }
 
 void
