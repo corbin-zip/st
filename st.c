@@ -1026,17 +1026,18 @@ tfulldirt(void)
 	tsetdirt(0, term.row-1);
 }
 
+static TCursor csaved[2]; /* DECSC cursors: [0] main screen, [1] alt */
+
 void
 tcursor(int mode)
 {
-	static TCursor c[2];
 	int alt = IS_SET(MODE_ALTSCREEN);
 
 	if (mode == CURSOR_SAVE) {
-		c[alt] = term.c;
+		csaved[alt] = term.c;
 	} else if (mode == CURSOR_LOAD) {
-		term.c = c[alt];
-		tmoveto(c[alt].x, c[alt].y);
+		term.c = csaved[alt];
+		tmoveto(csaved[alt].x, csaved[alt].y);
 	}
 }
 
@@ -2767,6 +2768,9 @@ tresize(int col, int row)
 	if (i > 0) {
 		memmove(term.line, term.line + i, row * sizeof(Line));
 		memmove(term.alt, term.alt + i, row * sizeof(Line));
+		/* both screens slid up; keep the saved cursors on their lines */
+		csaved[0].y = MAX(csaved[0].y - i, 0);
+		csaved[1].y = MAX(csaved[1].y - i, 0);
 	}
 	for (i += row; i < term.row; i++) {
 		free(term.line[i]);
@@ -2835,25 +2839,28 @@ tresize(int col, int row)
 	term.c = c;
 
 	/*
-	 * grow back into the scrollback: rotate the screen down and
-	 * pop history lines onto the top, reversing the shrink above
+	 * grow back into the scrollback: rotate the main screen down and
+	 * pop history lines onto the top, reversing the shrink above.
+	 * This must also happen while the alt screen is shown, or
+	 * shrink/grow cycles during e.g. vim slide the main screen up
+	 * under the shell's feet and the prompt gets duplicated.
 	 */
-	if (!IS_SET(MODE_ALTSCREEN)) {
-		grown = MIN(grown, term.histn);
-		for (i = 0; i < grown; i++) {
-			tline = term.line[row-1];
-			memmove(term.line + 1, term.line,
-					(row - 1) * sizeof(Line));
-			term.line[0] = term.hist[term.histi];
-			term.hist[term.histi] = tline;
-			term.histi = (term.histi - 1 + HISTSIZE) % HISTSIZE;
-			term.histn--;
-		}
-		if (grown > 0) {
+	mainscr = IS_SET(MODE_ALTSCREEN) ? term.alt : term.line;
+	grown = MIN(grown, term.histn);
+	for (i = 0; i < grown; i++) {
+		tline = mainscr[row-1];
+		memmove(mainscr + 1, mainscr, (row - 1) * sizeof(Line));
+		mainscr[0] = term.hist[term.histi];
+		term.hist[term.histi] = tline;
+		term.histi = (term.histi - 1 + HISTSIZE) % HISTSIZE;
+		term.histn--;
+	}
+	if (grown > 0) {
+		if (!IS_SET(MODE_ALTSCREEN))
 			term.c.y += grown;
-			LIMIT(term.scr, 0, term.histn);
-			tfulldirt();
-		}
+		csaved[0].y = MIN(csaved[0].y + grown, row - 1);
+		LIMIT(term.scr, 0, term.histn);
+		tfulldirt();
 	}
 }
 
