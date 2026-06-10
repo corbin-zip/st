@@ -138,7 +138,7 @@ hbtransformsegment(XftFont *xfont, const Glyph *string, hb_codepoint_t *codepoin
 	}
 
 	/* Shape the segment. */
-	hb_shape(font, buffer, features, sizeof(features));
+	hb_shape(font, buffer, features, sizeof(features) / sizeof(features[0]));
 
 	/* Get new glyph info. */
 	hb_glyph_info_t *info = hb_buffer_get_glyph_infos(buffer, NULL);
