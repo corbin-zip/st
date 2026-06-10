@@ -56,11 +56,11 @@ hbfindfont(XftFont *match)
 	}
 
 	/* Font not found in cache, caching it now. */
-	hbfontcache = realloc(hbfontcache, sizeof(HbFontMatch) * (hbfontslen + 1));
+	hbfontcache = xrealloc(hbfontcache, sizeof(HbFontMatch) * (hbfontslen + 1));
 	FT_Face face = XftLockFace(match);
 	hb_font_t *font = hb_ft_font_create(face, NULL);
 	if (font == NULL)
-		die("Failed to load Harfbuzz font.");
+		die("Failed to load Harfbuzz font.\n");
 
 	hbfontcache[hbfontslen].match = match;
 	hbfontcache[hbfontslen].font = font;
