@@ -2779,11 +2779,15 @@ tresize(int col, int row)
 	term.dirty = xrealloc(term.dirty, row * sizeof(*term.dirty));
 	term.tabs = xrealloc(term.tabs, col * sizeof(*term.tabs));
 
-	for (i = 0; i < HISTSIZE; i++) {
-		term.hist[i] = xrealloc(term.hist[i], col * sizeof(Glyph));
-		for (j = mincol; j < col; j++) {
-			term.hist[i][j] = term.c.attr;
-			term.hist[i][j].u = ' ';
+	/* history lines are already term.maxcol wide; only touch them when
+	 * the width grows beyond any previous size */
+	if (col > term.maxcol) {
+		for (i = 0; i < HISTSIZE; i++) {
+			term.hist[i] = xrealloc(term.hist[i], col * sizeof(Glyph));
+			for (j = mincol; j < col; j++) {
+				term.hist[i][j] = term.c.attr;
+				term.hist[i][j].u = ' ';
+			}
 		}
 	}
 
