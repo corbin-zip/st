@@ -870,7 +870,10 @@ ttywrite(const char *s, size_t n, int may_echo)
 	const char *next;
 	Arg arg = (Arg) { .i = term.scr };
 
-	kscrolldown(&arg);
+	/* only user-originated input (may_echo) snaps the view back to the
+	 * bottom; terminal replies like mouse reports and DSR must not */
+	if (may_echo)
+		kscrolldown(&arg);
 
 	if (may_echo && IS_SET(MODE_ECHO))
 		twrite(s, n, 1);
