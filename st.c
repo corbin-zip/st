@@ -980,8 +980,8 @@ tattrset(int attr)
 {
 	int i, j;
 
-	for (i = 0; i < term.row-1; i++) {
-		for (j = 0; j < term.col-1; j++) {
+	for (i = 0; i < term.row; i++) {
+		for (j = 0; j < term.col; j++) {
 			if (term.line[i][j].mode & attr)
 				return 1;
 		}
@@ -1010,8 +1010,8 @@ tsetdirtattr(int attr)
 {
 	int i, j;
 
-	for (i = 0; i < term.row-1; i++) {
-		for (j = 0; j < term.col-1; j++) {
+	for (i = 0; i < term.row; i++) {
+		for (j = 0; j < term.col; j++) {
 			if (term.line[i][j].mode & attr) {
 				tsetdirt(i, i);
 				break;
