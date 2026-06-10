@@ -24,7 +24,8 @@ LIBS = -L$(X11LIB) -lm -lrt -lX11 -lutil -lXft -lXrender\
 
 # flags
 STCPPFLAGS = -DVERSION=\"$(VERSION)\" -D_XOPEN_SOURCE=600
-STCFLAGS = $(INCS) $(STCPPFLAGS) -O2 $(CPPFLAGS) $(CFLAGS)
+# -O2 last: with .POSIX, GNU make 4.4+ injects a default CFLAGS=-O1 that must not win
+STCFLAGS = $(INCS) $(STCPPFLAGS) $(CPPFLAGS) $(CFLAGS) -O2
 STLDFLAGS = $(LIBS) $(LDFLAGS)
 
 # OpenBSD:
