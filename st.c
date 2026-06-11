@@ -62,7 +62,8 @@ enum cursor_movement {
 enum cursor_state {
 	CURSOR_DEFAULT  = 0,
 	CURSOR_WRAPNEXT = 1,
-	CURSOR_ORIGIN   = 2
+	CURSOR_ORIGIN   = 2,
+	CURSOR_AFTERCR  = 4
 };
 
 enum charset {
@@ -2856,6 +2857,7 @@ tcontrolcode(uchar ascii)
 		return;
 	case '\r':   /* CR */
 		tmoveto(0, term.c.y);
+		term.c.state |= CURSOR_AFTERCR;
 		return;
 	case '\f':   /* LF */
 	case '\v':   /* VT */
@@ -3157,6 +3159,22 @@ check_control_code:
 		else
 			tmoveto(term.col - width, term.c.y);
 		gp = &term.line[term.c.y][term.c.x];
+	}
+
+	/* the first glyph written at column 0 after an explicit CR restarts
+	 * this row: the previous row's wrap flag no longer continues here.
+	 * Without this, a shell reprinting its prompt over an old wrapped
+	 * one (every SIGWINCH during a drag-resize) leaves stale chains
+	 * that reflow would join into one ever-growing junk line. */
+	if (term.c.state & CURSOR_AFTERCR) {
+		term.c.state &= ~CURSOR_AFTERCR;
+		if (term.c.x == 0) {
+			if (term.c.y > 0) {
+				term.line[term.c.y-1][term.col-1].mode &= ~ATTR_WRAP;
+			} else if (!IS_SET(MODE_ALTSCREEN) && sb.len > 0) {
+				sb_get(sb.len - 1)[term.col-1].mode &= ~ATTR_WRAP;
+			}
+		}
 	}
 
 	tsetchar(u, &term.c.attr, term.c.x, term.c.y);

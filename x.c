@@ -769,6 +769,9 @@ bmotion(XEvent *e)
 	mousesel(e, 0);
 }
 
+static int ttyresizepending;
+static struct timespec ttyresizetime;
+
 void
 cresize(int width, int height)
 {
@@ -786,7 +789,20 @@ cresize(int width, int height)
 
 	tresize(col, row);
 	xresize(col, row);
-	ttyresize(win.tw, win.th);
+
+	/*
+	 * Debounce the kernel winsize update: during an interactive drag
+	 * every intermediate size would SIGWINCH the shell into reprinting
+	 * its prompt against geometry that is already gone, stranding
+	 * prompt fragments in scrollback. The shell only sees the size
+	 * once it has been stable for resizedebounce ms.
+	 */
+	if (resizedebounce <= 0) {
+		ttyresize(win.tw, win.th);
+	} else {
+		ttyresizepending = 1;
+		clock_gettime(CLOCK_MONOTONIC, &ttyresizetime);
+	}
 }
 
 void
@@ -2147,6 +2163,9 @@ run(void)
 
 	ttyfd = ttynew(opt_line, shell, opt_io, opt_cmd);
 	cresize(w, h);
+	/* the initial size must reach the shell before it prompts */
+	ttyresizepending = 0;
+	ttyresize(win.tw, win.th);
 
 	for (timeout = -1, drawing = 0, lastblink = (struct timespec){0};;) {
 		FD_ZERO(&rfd);
@@ -2213,6 +2232,16 @@ run(void)
 				tsetdirtattr(ATTR_BLINK);
 				lastblink = now;
 				timeout = blinktimeout;
+			}
+		}
+
+		if (ttyresizepending) {
+			double rto = resizedebounce - TIMEDIFF(now, ttyresizetime);
+			if (rto <= 0) {
+				ttyresizepending = 0;
+				ttyresize(win.tw, win.th);
+			} else if (timeout < 0 || rto < timeout) {
+				timeout = rto;
 			}
 		}
 

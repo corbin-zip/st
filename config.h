@@ -58,6 +58,15 @@ static float minlatency = 2;
 static float maxlatency = 33;
 
 /*
+ * how long (ms) the window size must be stable before the shell is told
+ * about it (TIOCSWINSZ/SIGWINCH). During an interactive drag this keeps
+ * the shell from reprinting its prompt at every intermediate size,
+ * which strands prompt fragments in scrollback once the window gets
+ * narrower than the prompt. 0 notifies immediately (stock behavior).
+ */
+static float resizedebounce = 80;
+
+/*
  * blinking timeout (set to 0 to disable blinking) for the terminal blinking
  * attribute.
  */
@@ -216,6 +225,7 @@ ResourcePref resources[] = {
 		{ "shell",        STRING,  &shell },
 		{ "minlatency",   FLOAT,   &minlatency },
 		{ "maxlatency",   FLOAT,   &maxlatency },
+		{ "resizedebounce", FLOAT, &resizedebounce },
 		{ "blinktimeout", INTEGER, &blinktimeout },
 		{ "bellvolume",   INTEGER, &bellvolume },
 		{ "tabspaces",    INTEGER, &tabspaces },
