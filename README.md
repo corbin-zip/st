@@ -2,6 +2,22 @@
 
 The [suckless terminal](https://st.suckless.org/), forked from LukeSmithxyz/st and tracking upstream 0.9.3. The usual patch set, plus a round of bugfixes and performance work that the stock patches needed (see below).
 
+## Branches
+
+This repo carries two long-lived branches:
+
+- **`master`** — the classic ring-buffer scrollback patch, plus fixes. Resizing the window down and back up no longer loses or jumbles history (stock st with this patch does), but lines don't rewrap to the new width.
+- **`reflow`** — everything on `master`, with scrollback rebuilt on the standalone reflow patch: history rewraps to the window width on resize, like kitty/foot. Also carries the headless regression harness (`test_st.c`, `tests/`) used to fix the reflow patch's resize artifacts.
+
+Build whichever you want the same way:
+
+```sh
+git checkout master   # or: git checkout reflow
+sudo make install
+```
+
+Fixes land on `master` and are merged into `reflow`.
+
 ## Features
 
 Using dmenu:
