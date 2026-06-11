@@ -100,6 +100,7 @@ void printsel(const Arg *);
 void sendbreak(const Arg *);
 void toggleprinter(const Arg *);
 
+int tisaltscreen(void);
 int tattrset(int);
 void tnew(int, int);
 void tresize(int, int);
@@ -149,4 +150,4 @@ extern float alpha;
 extern float alphaUnfocus;
 extern const int boxdraw, boxdraw_bold, boxdraw_braille;
 extern unsigned int defaultcs;
-
+extern unsigned int scrollback_lines;

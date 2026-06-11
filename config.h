@@ -106,6 +106,9 @@ char *termname = "st-256color";
  */
 unsigned int tabspaces = 8;
 
+/* the amount of lines scrollback can hold before it wraps around */
+unsigned int scrollback_lines = 5000;
+
 /* bg opacity */
 float alpha = 0.8;
 float alphaOffset = 0.0;
