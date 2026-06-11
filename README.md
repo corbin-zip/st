@@ -1,91 +1,65 @@
-# Corbin's build of st - the simple (suckless) terminal
+# Corbin's build of st
 
-Forked from LukeSmithxyz/st. Everything below is from the original README until I finish updating it --
+The [suckless terminal](https://st.suckless.org/), forked from LukeSmithxyz/st and tracking upstream 0.9.3. The usual patch set, plus a round of bugfixes and performance work that the stock patches needed (see below).
 
-The [suckless terminal (st)](https://st.suckless.org/) with some additional
-features that make it literally the best terminal emulator ever:
+## Features
 
-## Unique features (using dmenu)
+Using dmenu:
 
-+ **follow urls** by pressing `alt-l`
-+ **copy urls** in the same way with `alt-y`
-+ **copy the output of commands** with `alt-o`
+- follow URLs on screen with `alt-l`
+- copy URLs with `alt-y`
+- copy the output of the last command with `alt-o`
 
-## Bindings for
+Bindings:
 
-+ **scrollback** with `alt-↑/↓` or `alt-pageup/down` or `shift` while scrolling the
-  mouse.
-+ OR **vim-bindings**: scroll up/down in history with `alt-k` and `alt-j`.
-  Faster with `alt-u`/`alt-d`.
-+ **zoom/change font size**: same bindings as above, but holding down shift as
-  well. `alt-home` returns to default
-+ **copy text** with `alt-c`, **paste** is `alt-v` or `shift-insert`
+- scrollback with `alt-↑/↓`, `alt-pageup/down`, or shift while scrolling the mouse; vim-style with `alt-k/j` (faster with `alt-u/d`)
+- zoom/change font size with `alt-shift-↑/↓` or `alt-shift-k/j`; `alt-home` returns to default
+- copy with `alt-c`, paste with `alt-v`. `shift-insert` pastes the primary selection, ie same as middle click
+- kitty-style `shift-enter` escape sequence, so TUI apps that distinguish it (like some chat clients) get the real thing
 
-## Pretty stuff
+Other patches: boxdraw (pixel-perfect box-drawing characters), HarfBuzz ligatures, font2 fallback fonts.
 
-+ Compatibility with `Xresources` and `pywal` for dynamic colors.
-+ Default [gruvbox](https://github.com/morhetz/gruvbox) colors otherwise.
-+ Transparency/alpha, which is also adjustable from your `Xresources`.
-+ Default font is system "mono" at 14pt, meaning the font will match your
-  system font.
+## Theming
 
-## Other st patches
+- Xresources and pywal compatible for dynamic colors; gruvbox is the default and fallback palette
+- transparency/alpha, with a separate unfocused-window alpha, both settable from Xresources and adjustable at runtime with `alt-a`/`alt-s` (needs a compositor running)
+- default font is the system "mono", so it follows your fontconfig setup
 
-+ Boxdraw
-+ Ligatures
-+ font2
-+ updated to latest version 0.8.5
+Priority for colors: wal's sequences beat Xresources, which beat the compiled-in gruvbox.
 
-## Installation for newbs
+## Fixes and performance
 
-You should have xlib header files and libharfbuzz build files installed.
+The popular st patches don't always compose cleanly, and this build has had a "proper" bug hunt over them with Claude Code running Fable 5. Highlights from the commit history:
 
-```
-git clone https://github.com/LukeSmithxyz/st
+- scrollback: fixed jumbled history when resizing the window down and back up, fixed a repeating-line bug, and the view no longer snaps to the bottom when the terminal itself answers a query (so a background program can't yank you out of scrollback)
+- resizing no longer reallocates every history line unless the width actually grows, which makes resizes much cheaper with a large scrollback
+- fixed an off-by-one that excluded the last row and column from attribute updates
+- fixed an out-of-bounds read in the HarfBuzz shaping call and a couple of memory leaks
+- the `-A` alpha flag and the `minlatency`/`maxlatency` Xresources actually work now (the latter were being written as integers into doubles)
+- fixed a cursor restore bug that showed up in lazygit
+- builds with `-O2` by default, and keystroke handling no longer mallocs per keypress
+
+## Installation
+
+Dependencies: `libX11`, `libXft`, `fontconfig`, `freetype2`, `harfbuzz`, and `make` to build.
+
+```sh
+git clone https://github.com/corbin-zip/st
 cd st
 sudo make install
 ```
 
-Obviously, `make` is required to build. `fontconfig` is required for the
-default build, since it asks `fontconfig` for your system monospace font. It
-might be obvious, but `libX11` and `libXft` are required as well. Chances are,
-you have all of this installed already.
+Run a compositor (eg `picom`) if you want transparency.
 
-On OpenBSD, be sure to edit `config.mk` first and remove `-lrt` from the
-`$LIBS` before compiling.
+## Configuring with Xresources
 
-Be sure to have a composite manager (`xcompmgr`, `picom`, etc.) running if you
-want transparency.
-
-## How to configure dynamically with Xresources
-
-For many key variables, this build of `st` will look for X settings set in
-either `~/.Xdefaults` or `~/.Xresources`. You must run `xrdb` on one of these
-files to load the settings.
-
-For example, you can define your desired fonts, transparency or colors:
+Persistent configuration is compiled in from `config.h`, but font, colors, alpha, and a few other variables can be overridden from `~/.Xresources` or `~/.Xdefaults` (load with `xrdb`):
 
 ```
-*.font:	Liberation Mono:pixelsize=12:antialias=true:autohint=true;
+*.font:  Liberation Mono:pixelsize=12:antialias=true:autohint=true;
 *.alpha: 0.9
 *.color0: #111
 ...
 ```
 
-The `alpha` value (for transparency) goes from `0` (transparent) to `1`
-(opaque). There is an example `Xdefaults` file in this respository.
-
-### Colors
-
-To be clear about the color settings:
-
-- This build will use gruvbox colors by default and as a fallback.
-- If there are Xresources colors defined, those will take priority.
-- But if `wal` has run in your session, its colors will take priority.
-
-Note that when you run `wal`, it will negate the transparency of existing windows, but new windows will continue with the previously defined transparency.
-
-## Contact
-
-- Luke Smith <luke@lukesmith.xyz>
-- [https://lukesmith.xyz](https://lukesmith.xyz)
+`alpha` goes from 0 (transparent) to 1 (opaque). There is an example `Xdefaults` file in this repository.
