@@ -3,3 +3,5 @@ patches/
 *.o
 st
 *.orig
+
+CLAUDE.md
